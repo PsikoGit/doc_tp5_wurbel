@@ -1,0 +1,433 @@
+# 🖥️ Documentation Déploiement Nextcloud
+
+> **Note :** Cette documentation ne couvre pas l'installation des VM, la configuration des IP, etc.
+
+---
+
+## 🔌 Connexion aux VM via SSH
+
+Les VM sont dans un réseau non accessible directement depuis le VDI. Pour simplifier les connexions, configurez `~/.ssh/config` comme suit :
+
+```ssh-config
+Host webserver1
+    HostName 10.20.1.20
+    User qamu
+    ProxyJump qamu@192.168.122.50
+
+Host webserver2
+    HostName 10.20.1.30
+    User qamu
+    ProxyJump qamu@192.168.122.50
+
+Host redis
+    HostName 10.20.1.50
+    User qamu
+    ProxyJump qamu@192.168.122.50
+
+Host database
+    HostName 10.20.1.40
+    User qamu
+    ProxyJump qamu@192.168.122.50
+
+Host loadbalancer
+    HostName 192.168.122.50
+    User qamu
+```
+
+Avec cette config, `ssh webserver1` fait automatiquement un ProxyJump vers `10.20.1.20`. Sans ça, il faudrait se connecter en deux étapes (d'abord sur le loadbalancer, puis rebondir manuellement).
+
+> 💡 **Bonus perf :** copiez votre clé publique du VDI sur chaque VM pour éviter de saisir le mot de passe à chaque connexion.
+
+---
+
+## 📋 Travail à faire
+
+### ✅ Travail 1
+
+> *(Non décrit dans cette documentation)*
+
+---
+
+### ✅ Travail 2 — Configuration MariaDB
+
+#### 1. Installation
+
+```bash
+apt install mariadb-server
+```
+
+Dans `/etc/mysql/mariadb.cnf`, décommenter la ligne :
+
+```ini
+port = 3306
+```
+
+#### 2. Configuration serveur
+
+Dans `/etc/mysql/mariadb.conf.d/50-server.cnf` :
+
+```ini
+[server]
+skip_name_resolve = 1
+innodb_buffer_pool_size = 128M
+# innodb_buffer_pool_instances = 1
+innodb_flush_log_at_trx_commit = 2
+innodb_log_buffer_size = 32M
+innodb_max_dirty_pages_pct = 90
+query_cache_type = 1
+query_cache_limit = 2M
+query_cache_min_res_unit = 2k
+query_cache_size = 64M
+tmp_table_size = 64M
+max_heap_table_size = 64M
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time = 1
+
+[mariadbd]
+character_set_server = utf8mb4
+collation_server = utf8mb4_general_ci
+transaction_isolation = READ-COMMITTED
+binlog_format = ROW
+```
+
+Changer également le `bind-address` dans le même fichier :
+
+```ini
+bind-address = 0.0.0.0
+```
+
+#### 3. Configuration client
+
+Dans `/etc/mysql/mariadb.conf.d/50-client.cnf` :
+
+```ini
+[client]
+default-character-set = utf8mb4
+```
+
+#### 4. Finalisation
+
+```bash
+mkdir -p /var/log/mysql/
+systemctl restart mariadb
+sudo mariadb   # puis copier/coller les commandes SQL
+```
+
+> ⚠️ Ne pas oublier de créer `/var/log/mysql/` avant de redémarrer MariaDB.
+
+---
+
+### ✅ Travail 3 — Serveur NFS (sur `ncc-redis`)
+
+#### 1. Installation
+
+```bash
+apt install apache2 nfs-kernel-server
+```
+
+> 💡 On installe `apache2` directement pour éviter de recréer `www-data` manuellement.
+
+Désactiver Apache sur `ncc-redis` (il ne doit pas tourner ici) :
+
+```bash
+systemctl stop apache2
+systemctl disable apache2
+```
+
+#### 2. Création du partage NFS
+
+```bash
+mkdir -p /srv/nfs/ncshare
+```
+
+Dans `/etc/exports` :
+
+```
+/srv/nfs/ncshare 10.20.1.20(rw,sync) 10.20.1.30(rw,sync)
+```
+
+Appliquer la configuration :
+
+```bash
+exportfs -a
+```
+
+---
+
+### ✅ Travail 4 — Configuration Redis
+
+Suivre le guide du TP. Ne pas oublier de redémarrer Redis à la fin :
+
+```bash
+systemctl restart redis
+```
+
+---
+
+### ✅ Travail 5 — Configuration Apache
+
+#### Commandes utiles
+
+| Action | Commande |
+|--------|----------|
+| Activer un module | `a2enmod [module]` |
+| Désactiver un module | `a2dismod [module]` |
+| Activer une config | `a2enconf [config]` |
+| Désactiver une config | `a2disconf [config]` |
+
+> ℹ️ Si certains modules ou configs n'existent pas, ce n'est pas grave — ils ne sont pas indispensables au fonctionnement du TP.
+
+#### Hôte virtuel Nextcloud
+
+Créer `/etc/apache2/sites-available/nextcloud.conf` :
+
+```apache
+# nextcloud virtual host
+
+<VirtualHost *:80>
+  DocumentRoot /var/www/nextcloud/
+  ServerName  dav.mycloud.net
+
+  <Directory /var/www/nextcloud/>
+    Require all granted
+    AllowOverride All
+    Options FollowSymLinks MultiViews
+
+    <IfModule mod_dav.c>
+      Dav off
+    </IfModule>
+  </Directory>
+
+  ProxyFCGIBackendType FPM
+  <FilesMatch remote.php>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+  </FilesMatch>
+
+  ErrorLog ${APACHE_LOG_DIR}/dav-error.log
+  CustomLog ${APACHE_LOG_DIR}/dav-access.log vhost_combined
+
+</VirtualHost>
+```
+
+Activer le site :
+
+```bash
+a2ensite nextcloud
+```
+
+> ⚠️ **Cette configuration doit être faite sur les DEUX webservers.**
+
+---
+
+### ✅ Travail 6 — Montage NFS (sur `webserver1` et `webserver2`)
+
+```bash
+apt install nfs-common
+mkdir -p /srv/nfs/ncshare
+```
+
+Ajouter dans `/etc/fstab` :
+
+```fstab
+10.20.1.50:/srv/nfs/ncshare /srv/nfs/ncshare nfs rw,bg,intr 0 0
+```
+
+Monter le partage :
+
+```bash
+mount /srv/nfs/ncshare
+```
+
+---
+
+### ✅ Travail 7 — Installation Nextcloud
+
+#### 1. Téléchargement (depuis le VDI)
+
+Aller sur [https://nextcloud.com/install/#download-server](https://nextcloud.com/install/#download-server), télécharger le fichier ZIP, puis l'envoyer sur `webserver1` :
+
+```bash
+scp nextcloud-*.zip webserver1:
+```
+
+#### 2. Installation (sur `webserver1`)
+
+```bash
+mv nextcloud-*.zip /var/www/
+cd /var/www/
+unzip nextcloud-*.zip
+sudo chown -R www-data:www-data nextcloud
+```
+
+#### 3. Configuration initiale via OCC
+
+```bash
+cd /var/www/nextcloud
+sudo -E -u www-data php occ maintenance:install \
+     --database 'mysql' \
+     --database-name 'nextcloud' \
+     --database-host '10.20.1.40' \
+     --database-user 'ncc' \
+     --database-pass 'le_super_mot_de_passe_déjà_défini' \
+     --admin-pass 'mdp_de_admin' \
+     --data-dir '/srv/nfs/ncshare'
+```
+
+> ⚠️ Remplacer `--database-pass` et `--admin-pass` par les vraies valeurs.  
+> ✅ Si tout s'est bien passé, le message `Configuration successful` s'affiche.
+
+En cas d'erreur de connexion à la base : vérifier le `bind-address` dans MariaDB et relancer `systemctl restart mariadb`.
+
+#### 4. Configuration `config.php`
+
+Exemple de configuration finale sur `webserver2` (`/var/www/nextcloud/config/config.php`) :
+
+```php
+<?php
+$CONFIG = array (
+  'trusted_domains' =>
+  array (
+    0 => 'localhost',
+    1 => 'dav.mycloud.net',
+  ),
+  'datadirectory' => '/srv/nfs/ncshare',
+  'dbtype' => 'mysql',
+  'dbname' => 'nextcloud',
+  'dbhost' => '10.20.1.40',
+  'dbtableprefix' => 'oc_',
+  'mysql.utf8mb4' => true,
+  'dbuser' => 'ncc',
+  'installed' => true,
+  'memcache.local' => '\\OC\\Memcache\\APCu',
+  'memcache.distributed' => '\\OC\\Memcache\\Redis',
+  'redis' => [
+    'host' => '10.20.1.50',
+    'port' => 6379,
+    'timeout' => 0.0,
+    'read_timeout' => 0.0,
+  ],
+  'trusted_proxies' => ['10.20.1.10'],
+);
+```
+
+#### 5. DNS local sur le loadbalancer
+
+Dans `/etc/hosts` du loadbalancer, ajouter :
+
+```
+10.20.1.20    dav.mycloud.net
+```
+
+Tester avec `curl` ou `wget` :
+
+```bash
+curl http://dav.mycloud.net
+```
+
+---
+
+### ✅ Travail 8 — Synchronisation entre webservers
+
+#### 1. Génération des clés SSH (sur `webserver2`, user `ncc`)
+
+```bash
+ssh-keygen -t rsa   # Entrée × 3 pour une clé sans passphrase
+ssh-copy-id ncc@10.20.1.20
+```
+
+#### 2. Restriction SSH (sur `webserver1`)
+
+Dans `/home/ncc/.ssh/authorized_keys`, ajouter **devant** la clé publique de `webserver2` :
+
+```
+command="/home/ncc/filtre_ssh.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding
+```
+
+Créer `/home/ncc/filtre_ssh.sh` :
+
+```bash
+#!/bin/bash
+
+case $SSH_ORIGINAL_COMMAND in
+    *\|*|*\;*|*\&)
+        echo "UNAUTHORIZED COMMAND"
+        ;;
+    rsync*)
+        $SSH_ORIGINAL_COMMAND
+        ;;
+    sudo\ rsync*)
+        $SSH_ORIGINAL_COMMAND
+        ;;
+    *)
+        echo "UNAUTHORIZED COMMAND"
+        ;;
+esac
+```
+
+```bash
+chmod +x /home/ncc/filtre_ssh.sh
+```
+
+#### 3. Sudo sans mot de passe pour rsync (sur les DEUX webservers)
+
+```bash
+sudo visudo
+```
+
+Ajouter :
+
+```sudoers
+ncc     ALL=(root) NOPASSWD: /usr/bin/rsync
+```
+
+#### 4. Script de synchronisation (sur `webserver2`, user `ncc`)
+
+Créer `/home/ncc/synchro.sh` :
+
+```bash
+#!/bin/bash
+sudo rsync -avz -e 'ssh -l ncc -i /home/ncc/.ssh/id_rsa' \
+    --rsync-path="sudo rsync" \
+    10.20.1.20:/var/www/nextcloud /var/www >> /home/ncc/log/synchro.log
+```
+
+```bash
+chmod +x /home/ncc/synchro.sh
+```
+
+Ajouter la tâche cron :
+
+```bash
+crontab -e
+```
+
+```cron
+*/30 * * * * /home/ncc/synchro.sh
+```
+
+---
+
+### ✅ Travail 9 — Configuration HAProxy
+
+Suivre le TP (lecture + copier/coller). Ne pas oublier de redémarrer HAProxy :
+
+```bash
+systemctl restart haproxy
+```
+
+---
+
+### ✅ Travail 10 — Test depuis la machine cliente
+
+Sur la machine Debian cliente, ajouter dans `/etc/hosts` :
+
+```
+192.168.122.50    dav.mycloud.net
+```
+
+Suivre le TP et surveiller les logs Apache en temps réel :
+
+```bash
+tail -f /var/log/apache2/dav-access.log
+```
