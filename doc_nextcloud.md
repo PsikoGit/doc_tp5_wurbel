@@ -1,6 +1,6 @@
 # 🖥️ Documentation Déploiement Nextcloud
 
-> **DISCLAIMER** La lecture seule de cette doc ne suffit pas, je traite seulement les sujets complexes ou pas assez détaillé sur le sujet de Mr.WURBEL ou là ou il y a des erreurs dans l'énoncé de Mr.WURBEL
+**DISCLAIMER** La lecture seule de cette doc ne suffit pas, je traite seulement les sujets complexes ou pas assez détaillé sur le sujet de Mr.WURBEL ou là ou il y a des erreurs dans l'énoncé de Mr.WURBEL. Il faut donc prendre ce document comme un support pour vous avancer
 
 > **Note :** Cette documentation ne couvre pas l'installation des VM, la configuration des IP, etc.
 
