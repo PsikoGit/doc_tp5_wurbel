@@ -36,7 +36,7 @@ Host loadbalancer
     User qamu
 ```
 
-Avec cette config, `ssh webserver1` fait automatiquement un ProxyJump vers `10.20.1.20`. Sans ça, il faudrait se connecter en deux étapes (d'abord sur le loadbalancer, puis rebondir manuellement).
+Avec cette config, `ssh webserver1` fait automatiquement un ProxyJump vers `10.20.1.20`. Sans ça, il faudrait se connecter en deux étapes (d'abord sur le loadbalancer en faisant ssh qamu@192.168.122.50 puis rebondir en faisant qamu@10.20.1.20).
 
 > 💡 **Bonus perf :** copiez votre clé publique du VDI sur chaque VM pour éviter de saisir le mot de passe à chaque connexion.
 
@@ -113,10 +113,8 @@ default-character-set = utf8mb4
 ```bash
 mkdir -p /var/log/mysql/
 systemctl restart mariadb
-sudo mariadb   # puis copier/coller les commandes SQL
+sudo mariadb   # puis copier/coller les commandes SQL de l'énoncé, tout marche nickel normalement
 ```
-
-> ⚠️ Ne pas oublier de créer `/var/log/mysql/` avant de redémarrer MariaDB.
 
 ---
 
@@ -168,6 +166,8 @@ systemctl restart redis
 ---
 
 ### ✅ Travail 5 — Configuration Apache
+
+Je vais pas lister les commandes psk ça va être hyper long mais voici le guide pour tout faire
 
 #### Commandes utiles
 
@@ -250,15 +250,16 @@ mount /srv/nfs/ncshare
 Aller sur [https://nextcloud.com/install/#download-server](https://nextcloud.com/install/#download-server), télécharger le fichier ZIP, puis l'envoyer sur `webserver1` :
 
 ```bash
-scp nextcloud-*.zip webserver1:
+scp fichier.zip webserver1:
 ```
+Et oui merci le fichier de conf ssh ! ça simplifie la commande scp et webserver1: fait le proxyjump à notre place
 
 #### 2. Installation (sur `webserver1`)
 
 ```bash
-mv nextcloud-*.zip /var/www/
+mv fichier.zip /var/www/
 cd /var/www/
-unzip nextcloud-*.zip
+unzip fichier.zip
 sudo chown -R www-data:www-data nextcloud
 ```
 
@@ -277,41 +278,48 @@ sudo -E -u www-data php occ maintenance:install \
 ```
 
 > ⚠️ Remplacer `--database-pass` et `--admin-pass` par les vraies valeurs.  
-> ✅ Si tout s'est bien passé, le message `Configuration successful` s'affiche.
+> ✅ Si tout s'est bien passé, le message `Configuration successful` ou un truc du genre s'affiche.
 
-En cas d'erreur de connexion à la base : vérifier le `bind-address` dans MariaDB et relancer `systemctl restart mariadb`.
+En cas d'erreur de connexion à la base : vérifier le `bind-address` dans MariaDB et relancer `systemctl restart mariadb`. Sinon force à vous
 
 #### 4. Configuration `config.php`
 
-Exemple de configuration finale sur `webserver2` (`/var/www/nextcloud/config/config.php`) :
+Comme une config vaut mieux que mille mots. Configuration finale sur `webserver2` (`/var/www/nextcloud/config/config.php`) :
 
 ```php
 <?php
 $CONFIG = array (
+  'passwordsalt' => 'y+jASz2Z5rga2oKSnvtgNfdzZMn8bw',
+  'secret' => 'q80eBm7JAfV8IDgNoH9H1KlZ8sW/mt+p71Fd+XXjIUdbUUUo',
   'trusted_domains' =>
   array (
-    0 => 'localhost',
-    1 => 'dav.mycloud.net',
+	0 => 'localhost',
+	1 => 'dav.mycloud.net',
   ),
   'datadirectory' => '/srv/nfs/ncshare',
   'dbtype' => 'mysql',
+  'version' => '33.0.0.16',
+  'overwrite.cli.url' => 'http://localhost',
   'dbname' => 'nextcloud',
   'dbhost' => '10.20.1.40',
   'dbtableprefix' => 'oc_',
   'mysql.utf8mb4' => true,
   'dbuser' => 'ncc',
+  'dbpassword' => 'sousou123',
   'installed' => true,
+  'instanceid' => 'ocdakjvf4t5k',
   'memcache.local' => '\\OC\\Memcache\\APCu',
   'memcache.distributed' => '\\OC\\Memcache\\Redis',
   'redis' => [
-    'host' => '10.20.1.50',
-    'port' => 6379,
-    'timeout' => 0.0,
-    'read_timeout' => 0.0,
-  ],
-  'trusted_proxies' => ['10.20.1.10'],
+	'host' => '10.20.1.50',
+	'port' => 6379,
+	'timeout' => 0.0,
+	'read_timeout' => 0.0,
+	],
+  'trusted_proxies' => ['10.20.1.10', ],
 );
 ```
+OULALA J’AI LEAK MON MDP DE MA BDD NOOOOONNNNN !!
 
 #### 5. DNS local sur le loadbalancer
 
@@ -326,7 +334,7 @@ Tester avec `curl` ou `wget` :
 ```bash
 curl http://dav.mycloud.net
 ```
-
+N'oubliez pas de commenter la ligne dans /etc/hosts pour la suite
 ---
 
 ### ✅ Travail 8 — Synchronisation entre webservers
@@ -372,6 +380,8 @@ chmod +x /home/ncc/filtre_ssh.sh
 ```
 
 #### 3. Sudo sans mot de passe pour rsync (sur les DEUX webservers)
+
+avec l'utilisateur qamu 
 
 ```bash
 sudo visudo
@@ -422,7 +432,7 @@ systemctl restart haproxy
 
 ### ✅ Travail 10 — Test depuis la machine cliente
 
-Sur la machine Debian cliente, ajouter dans `/etc/hosts` :
+Sur la machine Debian cliente (moi j'ai pris celle de JLD), ajouter dans `/etc/hosts` :
 
 ```
 192.168.122.50    dav.mycloud.net
