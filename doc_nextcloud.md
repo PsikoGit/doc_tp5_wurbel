@@ -6,7 +6,7 @@
 
 ---
 
-## 🔌 Connexion aux VM via SSH
+## PAS OBLIGATOIRE : 🔌 Connexion aux VM via SSH
 
 Les VM sont dans un réseau non accessible directement depuis le VDI. Pour simplifier les connexions, configurez `~/.ssh/config` comme suit :
 
