@@ -36,7 +36,7 @@ Host loadbalancer
     User qamu
 ```
 
-Avec cette config, `ssh webserver1` fait automatiquement un ProxyJump vers `10.20.1.20`. Sans ça, il faudrait se connecter en deux étapes (d'abord sur le loadbalancer en faisant ssh qamu@192.168.122.50 puis rebondir en faisant qamu@10.20.1.20).
+Avec cette config, `ssh webserver1` fait automatiquement un ProxyJump vers `10.20.1.20`. Sans ça, il faudrait se connecter en deux étapes (d'abord sur le loadbalancer en faisant `ssh qamu@192.168.122.50` puis rebondir en faisant `ssh qamu@10.20.1.20`).
 
 > 💡 **Bonus perf :** copiez votre clé publique du VDI sur chaque VM pour éviter de saisir le mot de passe à chaque connexion.
 
