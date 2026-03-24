@@ -6,6 +6,18 @@
 
 ---
 
+## 📋 Sommaire des travaux
+
+- [Travail 2 — Configuration MariaDB](#-travail-2--configuration-mariadb)
+- [Travail 3 — Serveur NFS (sur `ncc-redis`)](#-travail-3--serveur-nfs-sur-ncc-redis)
+- [Travail 4 — Configuration Redis](#-travail-4--configuration-redis)
+- [Travail 5 — Configuration Apache](#-travail-5--configuration-apache)
+- [Travail 6 — Montage NFS (sur `webserver1` et `webserver2`)](#-travail-6--montage-nfs-sur-webserver1-et-webserver2)
+- [Travail 7 — Installation Nextcloud](#-travail-7--installation-nextcloud)
+- [Travail 8 — Synchronisation entre webservers](#-travail-8--synchronisation-entre-webservers)
+- [Travail 9 — Configuration HAProxy](#-travail-9--configuration-haproxy)
+- [Travail 10 — Test depuis la machine cliente](#-travail-10--test-depuis-la-machine-cliente)
+
 ## PAS OBLIGATOIRE : 🔌 Connexion aux VM via SSH
 
 Les VM sont dans un réseau non accessible directement depuis le VDI. Pour simplifier les connexions, configurez `~/.ssh/config` comme suit :
