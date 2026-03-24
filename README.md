@@ -293,7 +293,7 @@ En cas d'erreur de connexion à la base : vérifier le `bind-address` dans Maria
 
 #### 4. Configuration `config.php`
 
-Comme une config vaut mieux que mille mots. Configuration finale sur `webserver2` (`/var/www/nextcloud/config/config.php`) :
+Comme une config vaut mieux que mille mots. Configuration finale sur `webserver1` (`/var/www/nextcloud/config/config.php`) :
 
 ```php
 <?php
