@@ -338,7 +338,7 @@ Dans `/etc/hosts` du loadbalancer, ajouter :
 10.20.1.20    dav.mycloud.net
 ```
 
-Tester avec `curl` ou `wget` :
+Puis, toujours avec `loadbalancer`, tester avec `curl` ou `wget` :
 
 ```bash
 curl http://dav.mycloud.net
