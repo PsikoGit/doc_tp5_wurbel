@@ -6,8 +6,7 @@
 
 ## 📑 Sommaire
 
-- [Travail 1](#travail-1)
-- [Travail 2 — Configuration MariaDB](#travail-2--configuration-mariadb)
+- [Travail 2 — Configuration MariaDB](#Travail2--Configuration-MariaDB)
 - [Travail 3 — Serveur NFS (sur `ncc-redis`)](#travail-3--serveur-nfs-sur-ncc-redis)
 - [Travail 4 — Configuration Redis](#travail-4--configuration-redis)
 - [Travail 5 — Configuration Apache](#travail-5--configuration-apache)
