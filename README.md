@@ -55,7 +55,7 @@ Avec cette config, `ssh webserver1` fait automatiquement un ProxyJump vers `10.2
 #### 1. Installation
 
 ```bash
-apt install mariadb-server
+sudo apt install mariadb-server
 ```
 
 Dans `/etc/mysql/mariadb.cnf`, décommenter la ligne :
@@ -111,8 +111,8 @@ default-character-set = utf8mb4
 #### 4. Finalisation
 
 ```bash
-mkdir -p /var/log/mysql/
-systemctl restart mariadb
+sudo mkdir -p /var/log/mysql/
+sudo systemctl restart mariadb
 sudo mariadb   # puis copier/coller les commandes SQL de l'énoncé, tout marche nickel normalement
 ```
 
@@ -123,7 +123,7 @@ sudo mariadb   # puis copier/coller les commandes SQL de l'énoncé, tout marche
 #### 1. Installation
 
 ```bash
-apt install apache2 nfs-kernel-server
+sudo apt install apache2 nfs-kernel-server
 ```
 
 > 💡 On installe `apache2` directement pour éviter de recréer `www-data` manuellement.
@@ -131,14 +131,14 @@ apt install apache2 nfs-kernel-server
 Désactiver Apache sur `ncc-redis` (il ne doit pas tourner ici) :
 
 ```bash
-systemctl stop apache2
-systemctl disable apache2
+sudo systemctl stop apache2
+sudo systemctl disable apache2
 ```
 
 #### 2. Création du partage NFS
 
 ```bash
-mkdir -p /srv/nfs/ncshare
+sudo mkdir -p /srv/nfs/ncshare
 ```
 
 Dans `/etc/exports` :
@@ -150,7 +150,7 @@ Dans `/etc/exports` :
 Appliquer la configuration :
 
 ```bash
-exportfs -a
+sudo exportfs -a
 ```
 
 ---
@@ -160,7 +160,7 @@ exportfs -a
 Suivre le guide du TP. Ne pas oublier de redémarrer Redis à la fin :
 
 ```bash
-systemctl restart redis
+sudo systemctl restart redis
 ```
 
 ---
@@ -173,10 +173,10 @@ Je vais pas lister les commandes psk ça va être hyper long mais voici le guide
 
 | Action | Commande |
 |--------|----------|
-| Activer un module | `a2enmod [module]` |
-| Désactiver un module | `a2dismod [module]` |
-| Activer une config | `a2enconf [config]` |
-| Désactiver une config | `a2disconf [config]` |
+| Activer un module | `sudo a2enmod [module]` |
+| Désactiver un module | `sudo a2dismod [module]` |
+| Activer une config | `sudo a2enconf [config]` |
+| Désactiver une config | `sudo a2disconf [config]` |
 
 > ℹ️ Si certains modules ou configs n'existent pas, ce n'est pas grave — ils ne sont pas indispensables au fonctionnement du TP.
 
@@ -206,6 +206,11 @@ Créer `/etc/apache2/sites-available/nextcloud.conf` :
     SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
   </FilesMatch>
 
+  # Available loglevels: trace8, ..., trace1, debug, info, notice, warn,
+  # error, crit, alert, emerg.
+  # It is also possible to configure the loglevel for particular
+  # modules, e.g.
+  #LogLevel info ssl:warn
   ErrorLog ${APACHE_LOG_DIR}/dav-error.log
   CustomLog ${APACHE_LOG_DIR}/dav-access.log vhost_combined
 
@@ -215,7 +220,7 @@ Créer `/etc/apache2/sites-available/nextcloud.conf` :
 Activer le site :
 
 ```bash
-a2ensite nextcloud
+sudo a2ensite nextcloud
 ```
 
 > ⚠️ **Cette configuration doit être faite sur les DEUX webservers.**
@@ -225,8 +230,8 @@ a2ensite nextcloud
 ### ✅ Travail 6 — Montage NFS (sur `webserver1` et `webserver2`)
 
 ```bash
-apt install nfs-common
-mkdir -p /srv/nfs/ncshare
+sudo apt install nfs-common
+sudo mkdir -p /srv/nfs/ncshare
 ```
 
 Ajouter dans `/etc/fstab` :
@@ -238,7 +243,7 @@ Ajouter dans `/etc/fstab` :
 Monter le partage :
 
 ```bash
-mount /srv/nfs/ncshare
+sudo mount /srv/nfs/ncshare
 ```
 
 ---
@@ -261,7 +266,7 @@ Et oui merci le fichier de conf ssh ! ça simplifie la commande scp et webserver
 #### 2. Installation (sur `webserver1`)
 
 ```bash
-mv fichier.zip /var/www/
+sudo mv fichier.zip /var/www/
 cd /var/www/
 unzip fichier.zip
 sudo chown -R www-data:www-data nextcloud
@@ -429,7 +434,7 @@ crontab -e
 Suivre le TP (lecture + copier/coller). Ne pas oublier de redémarrer HAProxy :
 
 ```bash
-systemctl restart haproxy
+sudo systemctl restart haproxy
 ```
 
 ---
