@@ -446,6 +446,7 @@ Sur la machine Debian cliente (moi j'ai pris celle de JLD), ajouter dans `/etc/h
 ```
 192.168.122.50    dav.mycloud.net
 ```
+Puis ouvrez Firefox et allez sur l'URL `http://dav.mycloud.net`
 
 Suivre le TP et surveiller les logs Apache en temps réel :
 
